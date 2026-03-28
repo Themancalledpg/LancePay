@@ -15,9 +15,52 @@ async function getAuthenticatedUser(request: NextRequest) {
   })
 }
 
+// ── GET /api/routes-d/invoices/[id]/messages — list messages for an invoice ──
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params
+  const user = await getAuthenticatedUser(request)
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const invoice = await prisma.invoice.findUnique({
+    where: { id },
+    select: { id: true, userId: true },
+  })
+
+  if (!invoice) {
+    return NextResponse.json({ error: 'Invoice not found' }, { status: 404 })
+  }
+
+  if (invoice.userId !== user.id) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
+  const messages = await prisma.invoiceMessage.findMany({
+    where: { invoiceId: id },
+    select: {
+      id: true,
+      invoiceId: true,
+      senderType: true,
+      senderName: true,
+      content: true,
+      createdAt: true,
+    },
+    orderBy: { createdAt: 'asc' },
+  })
+
+  return NextResponse.json(messages, { status: 200 })
+}
+
+// ── POST /api/routes-d/invoices/[id]/messages — add a message to an invoice ──
+
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
   const user = await getAuthenticatedUser(request)
