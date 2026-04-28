@@ -32,6 +32,34 @@ function isValidHttpsUrl(url: string) {
   }
 }
 
+export async function GET(request: NextRequest) {
+  try {
+    const user = await getAuthenticatedUser(request)
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const webhooks = await prisma.userWebhook.findMany({
+      where: { userId: user.id },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        targetUrl: true,
+        description: true,
+        isActive: true,
+        subscribedEvents: true,
+        lastTriggeredAt: true,
+        createdAt: true,
+      },
+    })
+
+    return NextResponse.json({ webhooks })
+  } catch (error) {
+    logger.error({ err: error }, 'Routes B webhooks GET error')
+    return NextResponse.json({ error: 'Failed to get webhooks' }, { status: 500 })
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const user = await getAuthenticatedUser(request)
